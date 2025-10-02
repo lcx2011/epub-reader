@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react'
+import ePub from 'epubjs'
 import { Link } from 'react-router-dom'
 
 export default function Library() {
   const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [covers, setCovers] = useState({}) // slug -> coverUrl
 
   useEffect(() => {
     fetch('/epubs/index.json?_=' + Date.now())
@@ -16,6 +18,33 @@ export default function Library() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
+
+  // load cover images with epub.js when books change
+  useEffect(() => {
+    let cancelled = false
+    async function loadCovers() {
+      const entries = Array.isArray(books) ? books : []
+      await Promise.all(entries.map(async (b) => {
+        try {
+          const slug = b.slug
+          if (!slug || covers[slug]) return
+          const file = typeof b.file === 'string' ? b.file : ''
+          const url = `/epubs/${encodeURIComponent(file)}`
+          const book = ePub(url)
+          let coverUrl = ''
+          try {
+            coverUrl = await book.coverUrl()
+          } catch {}
+          try { await book?.destroy?.() } catch {}
+          if (!cancelled && coverUrl) {
+            setCovers((prev) => ({ ...prev, [slug]: coverUrl }))
+          }
+        } catch {}
+      }))
+    }
+    if (books && books.length) loadCovers()
+    return () => { cancelled = true }
+  }, [books])
 
   if (loading) {
     return <div className="py-10 text-center text-neutral-500">加载中...</div>
@@ -34,10 +63,14 @@ export default function Library() {
       {books.map(b => (
         <Link key={b.slug} to={`/read/${encodeURIComponent(b.slug)}`} className="group block">
           <div className="hover-card">
-            <div className="ratio-3x4 book-cover flex items-center justify-center">
-              <span className="text-neutral-400 text-sm px-2 text-center leading-snug">
-                {b.title?.slice(0, 30) || '未命名'}
-              </span>
+            <div className="ratio-3x4 book-cover flex items-center justify-center overflow-hidden">
+              {covers[b.slug] ? (
+                <img src={covers[b.slug]} alt={b.title || '封面'} className="w-full h-full object-cover rounded-lg" loading="lazy" />
+              ) : (
+                <span className="text-neutral-400 text-sm px-2 text-center leading-snug">
+                  {b.title?.slice(0, 30) || '未命名'}
+                </span>
+              )}
             </div>
             <div className="px-2 py-2">
               <div className="text-sm font-medium text-neutral-900 truncate">{b.title || '未命名'}</div>
