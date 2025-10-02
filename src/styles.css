@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base theme similar to flow */
+@layer base {
+  html, body, #root { height: 100%; }
+  body { @apply bg-neutral-100 text-neutral-800; }
+}
+
+/* Cards / covers */
+@layer components {
+  .hover-card { @apply transition-transform shadow-sm hover:shadow-md hover:-translate-y-0.5; }
+  .book-cover { @apply border border-black/5 rounded-lg bg-white; }
+  .ratio-3x4 { aspect-ratio: 3 / 4; display: block; }
+}
